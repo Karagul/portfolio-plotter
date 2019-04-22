@@ -1,4 +1,4 @@
-Portfolio Performance Plotter v1.1
+Portfolio Performance Plotter
 ================
 Nils Yannikos
 23 Januar 2019
@@ -54,12 +54,13 @@ The cost price of all BITA shares is $ 40,728.73, that of all AMZN shares is $ 1
 Now we load the file "transactions.txt", which contains all the trades that we just talked about, such as stock symbol, transaction type (buy or sell), transaction date, share volume, cost price, and commission fee. We store the transactions in the object "transactions". Also, we define the start and end date of the stock data that we want to visualize:
 
 ``` r
-transactions <- read.table("H:/Data_Science/Financial Modeling/transactions.txt", 
+transactions <- read.table(file.choose(), 
                       dec=".", 
                       header = T)
 # Define start and end date for stock data
 startdate <- "2014-05-05"
-enddate <- Sys.Date() # Let's use today as the end date
+enddate <- "2019-01-24"
+#enddate <- Sys.Date() # We can also use today as the end date
 ```
 
 Let's take a look at the data file. We can see that the first two rows contain sell transactions with no volume or price. This is (for now) necessary for the script to work. Also, we can see how the text file needs to be set-up. Remember that the stock symbols need to be exactly identical to the stock symbols found on the US stock exchanges. Typos in the stock symbol column will prevent the "getSymbols" function from collecting stock market data.
@@ -201,7 +202,7 @@ tmpstock_data$gain <- tmpstock_data$val_owned + tmpstock_data$tot_sellval -
 # our gain is value owned shares + value sold shares - total cost of shares
 
 tmpstock_data$gain_perc <- (tmpstock_data$val_owned + tmpstock_data$tot_sellval - 
-  tmpstock_data$tot_cost)/tmpstock_data$tot_cost*100
+  tmpstock_data$tot_cost) / tmpstock_data$tot_cost * 100
 # our gain % is (value owned shares + value sold shares -
 # total cost of shares) / total cost of shares
 
@@ -243,7 +244,7 @@ for(c in 1:bN){
   tmp_merg_df <- merge(get(levels(transactions[,5])[c])$gain,
                          get(levels(transactions[,5])[c])$tot_cost)
   # merge gain and tot_cost into temp dataframe
-  tmp_merg_df$gain_perc <- tmp_merg_df$gain / tmp_merg_df$tot_cost *100
+  tmp_merg_df$gain_perc <- tmp_merg_df$gain / tmp_merg_df$tot_cost * 100
   # calculate percent gain in temp dataframe
   names(tmp_merg_df)[1] <- paste(as.character(levels(transactions[,5])[c]),
                                  "gain", sep = "_")
@@ -259,10 +260,10 @@ merg_df<-merg_df[,1:ncol(merg_df)-1]
 
 ncol_merg_df <- ncol(merg_df) # how many cols are in merg_df?
 
-merg_df$grand_total_gain <- rowSums(merg_df[,seq(1,ncol_merg_df,3)]) 
+merg_df$grand_total_gain <- rowSums(merg_df[,seq(1,ncol_merg_df,3)],na.rm = TRUE) 
 merg_df$grand_tot_cost <- rowSums(merg_df[,seq(2,ncol_merg_df,3)]) 
-merg_df$grand_total_gain_perc <- rowSums(merg_df[,seq(1,ncol_merg_df,3)])/
-  rowSums(merg_df[,seq(2,ncol_merg_df,3)])*100 
+merg_df$grand_total_gain_perc <- rowSums(merg_df[,seq(1,ncol_merg_df,3)],na.rm = TRUE)/
+  rowSums(merg_df[,seq(2,ncol_merg_df,3)],na.rm = TRUE) * 100
 # calculate grand total gain = gain of all stocks.
 # same principle for grand total cost and gain percentage.
 
@@ -283,11 +284,14 @@ Now it's finally time to look at the data. First we need to gather the different
 g1 <- gather(gain_df, key = "stock", value = "gain",-date, na.rm = FALSE) 
 #I have to exclude the date column, else it will be gathered too.
 
-ggplot(data = g1) +
-  geom_line(mapping = aes(x = date, y = gain, color = stock), size = 0.5) +
+
+ggplot() +
+  geom_line(data = g1, mapping = aes(x = date, y = gain, color = stock), size = 0.5) +
   theme(legend.position="top") +
   ylab("Absolute gain ($)") +
-  scale_y_continuous(breaks = seq(-30000,50000,5000), position = "right")
+  scale_y_continuous(breaks = seq(-30000,50000,5000), position = "right") +
+  geom_hline(yintercept=0, linetype="dashed", color = "red") +
+  scale_x_date(date_breaks = "1 years")
 ```
 
 ![](portfolio_plotter_files/figure-markdown_github/unnamed-chunk-10-1.png)
@@ -315,11 +319,14 @@ Let's take a look at the percentage gain of all stocks and the whole portfolio o
 g2 <- gather(gain_perc_df, key = "stock", value = "gain_percent",-date) 
 #I have to exclude the date column, else it will be gathered too.
 
-ggplot(data = g2) +
-  geom_line(mapping = aes(x = date, y = gain_percent, color = stock), size = 0.5) +
-  theme(legend.position="top") +
+  
+ggplot() +
+  geom_line(data = g2, mapping = aes(x = date, y = gain_percent, color = stock), size = 1) +
+  theme(legend.position="top") +  
   ylab("Gain %") +
-  scale_y_continuous(breaks = seq(-100,500,50),position = "right")
+  scale_y_continuous(breaks = seq(-100,500,50),position = "right") +
+  geom_hline(yintercept=0, linetype="dashed", color = "red") + 
+  scale_x_date(date_breaks = "1 years")
 ```
 
 ![](portfolio_plotter_files/figure-markdown_github/unnamed-chunk-11-1.png)
