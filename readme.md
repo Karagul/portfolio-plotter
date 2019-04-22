@@ -6,9 +6,11 @@ Nils Yannikos
 Introduction
 ============
 
-I have tried out many stock apps on my smartphone, and quite a few of them have an option to track your portfolio, which allows you to calculate the absolute and percentage gain of each single stock and the whole stock portfolio. But what if you would like to see your portfolio performance over time? Did your trades benefit you or made you lose even more money than if you had just left the stocks alone after you bought them? What was the highest percentage gain that you had at any time since you bought the stocks? What will be your percentage gain if you keep buying and selling stocks over a certain duration? Unfortunately, I haven't seen a single app that can do the same thing and plot it over time (which doesn't mean that no such app exists), although it shouldn't be too difficult. Basically, you could record the gain and gain % of your app every day, put it into a .txt file and plot it, but this would be too tedious and you would have missing data if you forgot to record your values for one day. Thus, I wrote this script to play around with some basic R features and find my own solution to this problem. This is part of my own learning experience, while proceeding, I hope to find some more sophisticated and efficient procedures.
+I have tried out many stock apps on my smartphone, and quite a few of them have an option to track your portfolio, which allows you to calculate the absolute and percentage gain of each single stock and of the whole stock portfolio. But what if you would like to see your portfolio performance over time? Did your trades benefit you or make you lose even more money than if you had just left the stocks alone after you bought them? What was the highest percentage gain of your portfolio at any time since you bought the stocks? What will your percentage gain be if you keep buying and selling stocks over a certain duration? Unfortunately, I haven't seen a single app that can visualize this (which doesn't mean that no such app exists), although it shouldn't be too difficult. Basically, you could record the gain and gain % from your stock app every day after market close and put it into a .txt file to plot it, but this would be too tedious and you would have missing data if you forgot to record your values for one day. Thus, I wrote this script to play around with some basic R features and find my own solution to this problem. This is part of my own learning experience, while proceeding, I hope to find some more sophisticated and efficient procedures.
 
-This script was written to plot the performance of a stock portfolio, accounting for all transactions (buy or sell) that are done over time. For example, several shares can be bought on different days, some sold a week later, some bought again etc. In this case, the decisions of the trader will affect the portfolio performance over time in the same way as a fund manager will affect the success of his portfolio through his decisions. Stock transactions of the portfolio can be provided as a tab delimited .txt file (described below) and the script will then automatically read how many different stocks there are, which stocks there are, and how many shares of which stock were bought or sold on what date etc. It will then download the historical prices and calculate the gain or loss of the portfolio as a whole. Let's get started and see what the output of the script looks like.
+This script was written to plot the performance of a stock portfolio, accounting for all transactions (buy or sell) that were done over a certain period. For example, several shares can be bought on different days, some sold a week later, some bought again etc. These transactions of the portfolio can be provided as a tab delimited .txt file (described below) and the script will then automatically read which and how many different stocks were traded, how many shares of which stock were bought or sold on what date etc. It will then download the historical prices for respective stocks and calculate the gain or loss of the portfolio as a whole and of each individual stock in the portfolio. Let's get started and see what the output of the script looks like.
+
+I started learning R using the R book by Michael J Crawley, and now I am working with "R for Data Science" by Hadley Wickham, who also wrote tons of packages for R. I can totally recommend his book to anyone who wants to get started with R, as it is written in such an easily understandable way.
 
 The script begins
 =================
@@ -22,7 +24,7 @@ library(tidyverse) # used for data wrangling, written by Hadley Wickham
 library(zoo) # used for dealing with xts objects
 ```
 
-Let's say you found the stock BitAuto Holdings in 2014 and witnessed it's crazy run. Let's take a look at what happened between the 5th of May and the 26th of August, 2014:
+Let's say you found the stock BitAuto Holdings in 2014 and witnessed it's crazy run. If not, let's quickly take a look at what happened to the stock between the 5th of May and the 26th of August, 2014:
 
 ``` r
 BitAutoHoldings<-(getSymbols("BITA", 
@@ -57,6 +59,7 @@ Now we load the file "transactions.txt", which contains all the trades that we j
 transactions <- read.table(file.choose(), 
                       dec=".", 
                       header = T)
+# You have to select the transactions.txt file manualle, because of file.choose(). Feel free to replace this by the absolute file path of your transaction file.
 # Define start and end date for stock data
 startdate <- "2014-05-05"
 enddate <- "2019-01-24"
@@ -90,9 +93,9 @@ aN
 
     ## [1] 2
 
-The loop will now read through the transactions object, check how many different stocks there are and begin downloading one stock at a time. Then another loop within the main loop will subset the "transactions" object to "buy" and create a vector for each buy transaction. The vector will have the same length as the data frame that was downloaded using getSymbols(). If the date of the newly created vector is before the date of transaction (=buy) from the "transactions" subset, then the value will be set to 0, otherwise the value will be set to the cost price of the stock, as set in the "transactions" subset. The same will be done with the stock volume that was purchased. If the date of the vector is before the transaction date, then the volume will be set to 0, otherwise to the volume set in the "transactions" subset. The inner loop will cycle through the whole "transactions" subset until every buy transaction has resulted in a price and volume vector. The total cost of all buy transactions so far will then can be calculated buy multiplying the tmp\_cost vector by the tmp\_vol vector and storing it in the tot\_cost vector.
+The loop will now read through the transactions object, check how many different stocks there are and begin downloading one stock at a time. Then another loop within the main loop will subset the "transactions" object to "buy" and create a vector for each buy transaction. The vector will have the same length as the data frame that was downloaded using getSymbols(). If the date of the newly created vector is before the date of transaction (e.g., = buy) from the "transactions" subset, then the value will be set to 0, otherwise the value will be set to the cost price of the stock, as set in the "transactions" subset. The same will be done with the stock volume that was purchased. If the date of the vector is before the transaction date, then the volume will be set to 0, otherwise to the volume set in the "transactions" subset. This way it is possible to address when the stock entered the portfolio, and from this time on, the price of the stock will deviate from the cost of the stock, causing either a gain or a loss. The inner loop will cycle through the whole "transactions" subset until every buy transaction has resulted in a price and volume vector. The total cost of all buy transactions so far will then can be calculated buy multiplying the tmp\_cost vector by the tmp\_vol vector and storing it in the tot\_cost vector.
 
-This tot\_cost vector will grow with every iteration of the loop, until all the buy transactions have been addressed. The temporary loop vectors (tmp\_cost and tmp\_vol) will be merged with the respective stock data of the main loop. The newly created vectors in the merged data frame will be renamed by either "buyprice" or "buy\_volume", followed by a number of the respective loop iteration (= number of the buy transaction). After the first loop ends, one "buyprice" and one "buy\_volume" vector has been created for each corresponding buy transaction from the transactions subset. Now, the vectors "tot\_cost" and "tot\_buyvol", which have been growing with every iteration, are merged with the previously pulled stock data.
+This tot\_cost vector will grow with every iteration of the loop until all the buy transactions have been addressed. The temporary loop vectors (tmp\_cost and tmp\_vol) will be merged with the respective stock data of the main loop. The newly created vectors in the merged data frame will be renamed by either "buyprice" or "buy\_volume", followed by a number of the respective loop iteration (= number of the buy transaction). After the first loop ends, one "buyprice" and one "buy\_volume" vector have been created for each corresponding buy transaction from the transactions subset. Now, the vectors "tot\_cost" and "tot\_buyvol", which have been growing with every iteration, are merged with the previously pulled stock data.
 
 The second loop within the main loop does exactly the same as the previous sub-loop, but this time the transactions will be subset for "sell" transactions only.
 
@@ -211,7 +214,7 @@ assign(paste(stocknam, sep = ""), tmpstock_data)
 } # Loop 1 end
 ```
 
-So now we have been manipulating a lot of data. Let's take a look at the object that was created under the name "BitAuto". We select the first and the 400th row of the data: (Note: This line of code needs to be removed if the script is to run with other stock data, because the object "BitAuto" might not be created by the script and might thus cause an error).
+So now we have been manipulating a lot of data. Let's take a look at the object that was created under the name "BitAuto". We select the first and the 400th row of the data: (Note: This line of code needs to be removed if the script is to run with other stock data, because the object "BitAuto" might not have been created by the script and will then cause an error).
 
 ``` r
 BitAuto[c(1,400),]
@@ -233,7 +236,7 @@ BitAuto[c(1,400),]
 We can see how the first sub loop created many vecotrs called "buyprice" followed by a number of the loop's iteration. We see that on the first date of our snapshot (2014-05-05), "buyprice2" and "buy\_volume2" are still set to 0, whereas on the second date (2015-12-02) they contain values. This is because the respective transaction took place after 2014-05-05.
 We can also see that on the first day after buying BITA (2014-05-05), the gain was $ 1366.97, that's 13.7% up. But only 1.5 years later (2015-12-02), we lost $ 23557.69 of our initial investment, so what's left is 17171.04 dollars, which comes to a loss of 57.8%.
 
-Now we have an object for every stock type that we traded, no matter, how often we traded. Now we want to put all gains and total costs together in one data frame, which we call "merg\_df" (merged data frame). Within every iteration of this next loop, we calculate the gain % for the currently selected stock and add it to the data frame. Then we rename the three columns to the stockname + either "gain", "tot\_cost", or "gain\_perc". Note: in order to create an empty data frame with the length of our previously created vectors, we simply take the "gain" column (and automatically the index from the xts object) and delete it again after the loop has merged the calculated vectors to it. I know this is ugly, but it works until I find a better solution.
+Now we have an object for every stock type that we traded, no matter how often we traded. Now we want to put all gains and total costs together in one data frame, which we call "merg\_df" (merged data frame). Within every iteration of this next loop we calculate the gain % for the currently selected stock and add it to the data frame. Then we rename the three columns to the stockname + either "gain", "tot\_cost", or "gain\_perc". Note: in order to create an empty data frame with the length of our previously created vectors, we simply take the "gain" column (and automatically the index from the xts object) and delete it again after the loop has merged the calculated vectors to it. I know this is ugly, but it works until I find a better solution.
 
 ``` r
 merg_df <- get(levels(transactions[,5])[1])$gain
@@ -311,7 +314,7 @@ merg_df_noxts[merg_df_noxts[,1]=="2019-01-23",]
 # this is the dataset before we shortened it for plotting
 ```
 
-We can see from the table and the graph that we lost $ 29,221.61 on BitAuto, but we made $ 42,479.04 on Amazon. This comes to a total gain of $ 13,257.43 (= $ 42,479.04 - $ 29,221.61). But considering that we invested approx. 4 times as much money in BitAuto, this is a huge loss. On the other hand, only $ 10,001.60 of Amazon yielded $ 42,479.04, which is a gain of 424.7%. But the absolute gain should always be seen in relation to the invested amount.
+We can see from the table and the graph that we lost $ 29,221.61 on BitAuto but we made $ 42,479.04 on Amazon. This comes to a total gain of $ 13,257.43 (= $ 42,479.04 - $ 29,221.61). But considering that we invested approx. 4 times as much money in BitAuto, this is a huge loss. On the other hand, only $ 10,001.60 of Amazon yielded $ 42,479.04, which is a gain of 424.7%. But the absolute gain should always be seen in relation to the invested amount.
 
 Let's take a look at the percentage gain of all stocks and the whole portfolio over time:
 
