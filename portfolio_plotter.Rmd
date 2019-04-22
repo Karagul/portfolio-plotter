@@ -2,7 +2,7 @@
 title: "Portfolio Performance Plotter"
 author: "Nils Yannikos"
 date: "23 Januar 2019"
-output: pdf_document
+output: github_document
 documentclass: article
 classoption: a4paper
 ---
