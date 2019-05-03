@@ -14,8 +14,8 @@ chartSeries(BitAutoHoldings,theme = chartTheme("white"))
 32 * 312.55 # Amazon
 
 transactions <- read.table(file.choose(), 
-dec=".", 
-header = T)
+                           dec=".", 
+                           header = T)
 # Define start and end date for stock data
 startdate <- "2014-05-05"
 enddate <- "2019-01-24"
@@ -24,118 +24,113 @@ enddate <- "2019-01-24"
 transactions
 
 
-aN<-length(levels(transactions[,4]))
-aN 
 
-# Loop 1 begin (main loop)
-
-for(a in 1:aN){
-loop_stocksym <- levels(transactions[,4])[a] # select stock symbol
-tmpstock_data <- getSymbols(loop_stocksym, #pull stock data
-from = startdate,
-to = enddate,
-src="yahoo",
-auto.assign=FALSE) %>% .[,4]
-stocknam <- filter(transactions, 
-#select stock name from transactions (5th col of transactions)
-stocksymbol == loop_stocksym) %>%
-select(stockname) %>% 
-.[1,] %>% 
-as.character() 
-sub_transactions<-transactions[transactions[,6]=="buy" & transactions[,5]==stocknam,]
-# subset transactions to stockname and buy
-tot_cost <- rep(0,nrow(tmpstock_data)); tot_cost
-tot_buyvol <- rep(0,nrow(tmpstock_data)); tot_buyvol
-# create empty vectors to be filled during the loop
-# vectors have the same length as the data that was pulled from Yahoo Finance
-
-
-# Loop 1.1 begin (1st loop within main loop)
-
-for(i in 1:nrow(sub_transactions)){ # run the loop for every buy transaction (nrow)
-tmp_cost <- ifelse(index(tmpstock_data) < as.Date(sub_transactions[i,1]),
-0, 
-sub_transactions[i,3])
-# if date is before purchase, then price = 0. If date is after purchase, 
-# then price = transaction cost price (3rd col of sub_transactions)
-
-tmp_vol <- ifelse(index(tmpstock_data) < as.Date(sub_transactions[i,1]),
-0,
-sub_transactions[i,2])  
-# if date is before purchase, then volume = 0. If date is after purchase, 
-# then volume = transaction volume (2nd col of sub_transactions)
-
-tot_cost <- tot_cost + tmp_cost * tmp_vol; tot_cost
-# add price * vol to the empty vector that was defined before this loop. 
-# Value increases with every iteration of this loop (i.e., with every buy of same stock)
-
-tot_buyvol <- tot_buyvol + tmp_vol; tot_buyvol
-# add vol to the empty vector that was defined before this loop. 
-# Value increases with every iteration of this loop (i.e., with every buy of same stock)
-
-tmpstock_data<-merge(tmpstock_data, tmp_cost, tmp_vol)
-# merge those dataframes to the pulled stock data
-
-colnames(tmpstock_data)[colnames(tmpstock_data)=="tmp_cost"] <- paste("buyprice", 
-i, sep = "") 
-# rename those colnames of tmp_cost by "buyprice" and the corresponding number
-
-colnames(tmpstock_data)[colnames(tmpstock_data)=="tmp_vol"] <- paste("buy_volume", 
-i, sep = "") 
-# same as above, rename by "buy_volume" and the corresponding number
-} # Loop 1.1 end
-
-tmpstock_data <- merge(tmpstock_data, tot_cost, tot_buyvol)
-# merge the created data frames with the stock data from the main loop
-
-# Now we do exactly the same, but with sell data in the next loop.
-tot_sellval <- rep(0,nrow(tmpstock_data)); tot_sellval
-tot_sellvol <- rep(0,nrow(tmpstock_data)); tot_sellvol
-
-sub_transactions<-transactions[transactions[,6]=="sell" & transactions[,5]==stocknam,]
-# subset transactions to "buyorsell" (6th col) = sell"
-
-# Loop 1.2 begin (2nd loop in main loop)
-
-for(k in 1:nrow(sub_transactions)){ 
-tmp_cost <- ifelse(index(tmpstock_data) < as.Date(sub_transactions[k,1]), 
-0, sub_transactions[k,3]) 
-
-tmp_vol <- ifelse(index(tmpstock_data) < as.Date(sub_transactions[k,1]),
-0, sub_transactions[k,2])
-
-tot_sellval <- tot_sellval + tmp_cost * tmp_vol; tot_sellval
-tot_sellvol <- tot_sellvol + tmp_vol; tot_sellvol
-tmpstock_data<-merge(tmpstock_data, tmp_cost, tmp_vol) 
-
-colnames(tmpstock_data)[colnames(tmpstock_data)=="tmp_cost"] <- paste("sellprice", 
-k, sep = "") 
-
-colnames(tmpstock_data)[colnames(tmpstock_data)=="tmp_vol"] <- paste("sell_volume", 
-k, sep = "") 
-
-} # Loop 1.2 end 
-
-tmpstock_data <- merge(tmpstock_data, tot_sellval, tot_sellvol)
-# merge the created data frames with the stock data from the main loop
-
-tmpstock_data$vol_owned <- tmpstock_data$tot_buyvol - tmpstock_data$tot_sellvol 
-# volume of stock shares currently owned = bought shares - sold shares
-tmpstock_data$val_owned <- tmpstock_data$vol_owned * tmpstock_data[,1]
-# value owned = volume * price
-tmpstock_data$sum_eq <- tmpstock_data$val_owned + tmpstock_data$tot_sellval
-# the sum of our equity is owned stock + value of sales
-tmpstock_data$gain <- tmpstock_data$val_owned + tmpstock_data$tot_sellval - 
-tmpstock_data$tot_cost
-# our gain is value owned shares + value sold shares - total cost of shares
-
-tmpstock_data$gain_perc <- (tmpstock_data$val_owned + tmpstock_data$tot_sellval - 
-tmpstock_data$tot_cost) / tmpstock_data$tot_cost * 100
-# our gain % is (value owned shares + value sold shares -
-# total cost of shares) / total cost of shares
-
-assign(paste(stocknam, sep = ""), tmpstock_data)
-# save the data as an object with the name of the stock (stocknam)
+for(stsym in transactions$stocksymbol){ # select stock symbol
+  tmpstock_data <- getSymbols(stsym, #pull stock data
+                              from = startdate,
+                              to = enddate,
+                              src="yahoo",
+                              auto.assign=FALSE) %>% .[,4]
+  stocknam <- filter(transactions, 
+                     #select stock name from transactions (5th col of transactions)
+                     stocksymbol == stsym) %>%
+    select(stockname) %>% 
+    .[1,] %>% 
+    as.character() 
+  sub_transactions<-transactions[transactions[,6]=="buy" & transactions[,5]==stocknam,]
+  # subset transactions to stockname and buy
+  tot_cost <- rep(0,nrow(tmpstock_data)); tot_cost
+  tot_buyvol <- rep(0,nrow(tmpstock_data)); tot_buyvol
+  # create empty vectors to be filled during the loop
+  # vectors have the same length as the data that was pulled from Yahoo Finance
+  
+  
+  # Loop 1.1 begin (1st loop within main loop)
+  
+  for(i in 1:nrow(sub_transactions)){ # run the loop for every buy transaction (nrow)
+    tmp_cost <- ifelse(index(tmpstock_data) < as.Date(sub_transactions[i,1]),
+                       0, 
+                       sub_transactions[i,3])
+    # if date is before purchase, then price = 0. If date is after purchase, 
+    # then price = transaction cost price (3rd col of sub_transactions)
+    
+    tmp_vol <- ifelse(index(tmpstock_data) < as.Date(sub_transactions[i,1]),
+                      0,
+                      sub_transactions[i,2])  
+    # if date is before purchase, then volume = 0. If date is after purchase, 
+    # then volume = transaction volume (2nd col of sub_transactions)
+    
+    tot_cost <- tot_cost + tmp_cost * tmp_vol; tot_cost
+    # add price * vol to the empty vector that was defined before this loop. 
+    # Value increases with every iteration of this loop (i.e., with every buy of same stock)
+    
+    tot_buyvol <- tot_buyvol + tmp_vol; tot_buyvol
+    # add vol to the empty vector that was defined before this loop. 
+    # Value increases with every iteration of this loop (i.e., with every buy of same stock)
+    
+    tmpstock_data<-merge(tmpstock_data, tmp_cost, tmp_vol)
+    # merge those dataframes to the pulled stock data
+    
+    colnames(tmpstock_data)[colnames(tmpstock_data)=="tmp_cost"] <- paste("buyprice", 
+                                                                          i, sep = "") 
+    # rename those colnames of tmp_cost by "buyprice" and the corresponding number
+    
+    colnames(tmpstock_data)[colnames(tmpstock_data)=="tmp_vol"] <- paste("buy_volume", 
+                                                                         i, sep = "") 
+    # same as above, rename by "buy_volume" and the corresponding number
+  } # Loop 1.1 end
+  
+  tmpstock_data <- merge(tmpstock_data, tot_cost, tot_buyvol)
+  # merge the created data frames with the stock data from the main loop
+  
+  # Now we do exactly the same, but with sell data in the next loop.
+  tot_sellval <- rep(0,nrow(tmpstock_data)); tot_sellval
+  tot_sellvol <- rep(0,nrow(tmpstock_data)); tot_sellvol
+  
+  sub_transactions<-transactions[transactions[,6]=="sell" & transactions[,5]==stocknam,]
+  # subset transactions to "buyorsell" (6th col) = sell"
+  
+  # Loop 1.2 begin (2nd loop in main loop)
+  
+  for(k in 1:nrow(sub_transactions)){ 
+    tmp_cost <- ifelse(index(tmpstock_data) < as.Date(sub_transactions[k,1]), 
+                       0, sub_transactions[k,3]) 
+    
+    tmp_vol <- ifelse(index(tmpstock_data) < as.Date(sub_transactions[k,1]),
+                      0, sub_transactions[k,2])
+    
+    tot_sellval <- tot_sellval + tmp_cost * tmp_vol; tot_sellval
+    tot_sellvol <- tot_sellvol + tmp_vol; tot_sellvol
+    tmpstock_data<-merge(tmpstock_data, tmp_cost, tmp_vol) 
+    
+    colnames(tmpstock_data)[colnames(tmpstock_data)=="tmp_cost"] <- paste("sellprice", 
+                                                                          k, sep = "") 
+    
+    colnames(tmpstock_data)[colnames(tmpstock_data)=="tmp_vol"] <- paste("sell_volume", 
+                                                                         k, sep = "") 
+    
+  } # Loop 1.2 end 
+  
+  tmpstock_data <- merge(tmpstock_data, tot_sellval, tot_sellvol)
+  # merge the created data frames with the stock data from the main loop
+  
+  tmpstock_data$vol_owned <- tmpstock_data$tot_buyvol - tmpstock_data$tot_sellvol 
+  # volume of stock shares currently owned = bought shares - sold shares
+  tmpstock_data$val_owned <- tmpstock_data$vol_owned * tmpstock_data[,1]
+  # value owned = volume * price
+  tmpstock_data$sum_eq <- tmpstock_data$val_owned + tmpstock_data$tot_sellval
+  # the sum of our equity is owned stock + value of sales
+  tmpstock_data$gain <- tmpstock_data$val_owned + tmpstock_data$tot_sellval - 
+    tmpstock_data$tot_cost
+  # our gain is value owned shares + value sold shares - total cost of shares
+  
+  tmpstock_data$gain_perc <- (tmpstock_data$val_owned + tmpstock_data$tot_sellval - 
+                                tmpstock_data$tot_cost) / tmpstock_data$tot_cost * 100
+  # our gain % is (value owned shares + value sold shares -
+  # total cost of shares) / total cost of shares
+  
+  assign(paste(stocknam, sep = ""), tmpstock_data)
+  # save the data as an object with the name of the stock (stocknam)
 } # Loop 1 end
 
 merg_df <- get(levels(transactions[,5])[1])$gain
@@ -184,12 +179,12 @@ g1 <- gather(gain_df, key = "stock", value = "gain",-date, na.rm = FALSE)
 
 
 ggplot() +
-geom_line(data = g1, mapping = aes(x = date, y = gain, color = stock), size = 0.5) +
-theme(legend.position="top") +
-ylab("Absolute gain ($)") +
-scale_y_continuous(breaks = seq(-30000,50000,5000), position = "right") +
-geom_hline(yintercept=0, linetype="dashed", color = "red") +
-scale_x_date(date_breaks = "1 years")
+  geom_line(data = g1, mapping = aes(x = date, y = gain, color = stock), size = 0.5) +
+  theme(legend.position="top") +
+  ylab("Absolute gain ($)") +
+  scale_y_continuous(breaks = seq(-30000,50000,5000), position = "right") +
+  geom_hline(yintercept=0, linetype="dashed", color = "red") +
+  scale_x_date(date_breaks = "1 years")
 
 merg_df_noxts[merg_df_noxts[,1]=="2019-01-23",] 
 # this is the dataset before we shortened it for plotting
